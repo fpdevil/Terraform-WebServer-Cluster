@@ -3,7 +3,7 @@
 resource "aws_launch_template" "poc_launch_template" {
   name_prefix = "poc-tf-asg-"
 
-  image_id      = var.ami
+  image_id      = var.ami_id
   instance_type = var.instance_type
 
   # security_groups = [aws_security_group.allow-http-ssh.id]
@@ -19,6 +19,7 @@ resource "aws_launch_template" "poc_launch_template" {
 }
 
 # Resource: ASG Instance
+# Create Auto Scaling Group
 resource "aws_autoscaling_group" "poc_asg" {
   min_size = 2
   max_size = 10
@@ -31,7 +32,7 @@ resource "aws_autoscaling_group" "poc_asg" {
   # launch_configuration = aws_launch_template.poc_launch_template.name
   launch_template {
     # Refer to the launch template by its ID
-    id      = aws_launch_template.poc_launch_template.id
+    id = aws_launch_template.poc_launch_template.id
 
     # Use the latest version of launch template
     version = "$Latest"
@@ -39,12 +40,50 @@ resource "aws_autoscaling_group" "poc_asg" {
 
   # pick dynamically scaled ec2 insatnces using the ARN
   target_group_arns = [aws_alb_target_group.poc_alb_tgrp.arn]
-  health_check_type = "ELB"
+  health_check_type = "ELB" # EC2 is minimal health check type
 
   tag {
     key                 = "Name"
     value               = var.aws_autoscaling_group_name
     propagate_at_launch = true
+  }
+}
+
+# Resource: HTTP Listener for ALB
+# Refer the security group configured for ALB in this
+resource "aws_alb_listener" "poc_alb_http" {
+  load_balancer_arn = aws_alb.poc_alb.arn
+  port              = var.alb_port_http
+  protocol          = "HTTP"
+
+  # By default, return a simple 404 page
+  default_action {
+    type = "fixed-response"
+
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "404 Page Not Found!"
+      status_code  = 404
+    }
+  }
+}
+
+# Resource: Listener Rules
+# Create Listener rules for Load Balancer to match traffic of any
+# pattern '*' to the target group containing the ASG
+resource "aws_alb_listener_rule" "poc_alb_listener_rule" {
+  listener_arn = aws_alb_listener.poc_alb_http.arn
+  priority     = 100
+
+  condition {
+    path_pattern {
+      values = ["*"]
+    }
+  }
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_alb_target_group.poc_alb_tgrp.arn
   }
 }
 
@@ -84,6 +123,7 @@ data "aws_subnets" "default" {
 }
 
 # Resource:  Application Load Balancer
+# Refer the ALB security group to allow inbound HTTP/80 and any outbound
 resource "aws_alb" "poc_alb" {
   name               = var.alb_name
   load_balancer_type = "application"
@@ -91,25 +131,11 @@ resource "aws_alb" "poc_alb" {
   security_groups    = [aws_security_group.poc_alb_asg.id]
 }
 
-# Resource: HTTP Listener for ALB
-resource "aws_alb_listener" "poc_alb_http" {
-  load_balancer_arn = aws_alb.poc_alb.arn
-  port              = var.alb_port_http
-  protocol          = "HTTP"
-
-  # By default, return a simple 404 page
-  default_action {
-    type = "fixed-response"
-
-    fixed_response {
-      content_type = "text/plain"
-      message_body = "404 Page Not Found!"
-      status_code  = 404
-    }
-  }
-}
-
 # Resource: Security Group for ALB
+# ALB by default does not allow any incoming or outgoing traffic and
+# hence we need to create new security group specifically for ALB
+# Allow Incoming over HTTP/80
+# Allow Outgoing over all ports
 resource "aws_security_group" "poc_alb_asg" {
   name = var.alb_security_group_name
 
@@ -145,22 +171,5 @@ resource "aws_alb_target_group" "poc_alb_tgrp" {
     timeout             = 3
     healthy_threshold   = 2
     unhealthy_threshold = 2
-  }
-}
-
-# Resource: Listener Rules
-resource "aws_alb_listener_rule" "poc_alb_listener_rule" {
-  listener_arn = aws_alb_listener.poc_alb_http.arn
-  priority     = 100
-
-  condition {
-    path_pattern {
-      values = ["*"]
-    }
-  }
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_alb_target_group.poc_alb_tgrp.arn
   }
 }

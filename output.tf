@@ -2,7 +2,7 @@
 # Replace the public_ip output with DNS from ALB
 output "alb_dns_name" {
   value       = aws_alb.poc_alb.dns_name
-  description = "The Domain name of the Load Balancer"
+  description = "The DNS name of the Load Balancer to access"
 }
 
 output "launch_template_id" {

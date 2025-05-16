@@ -1,4 +1,4 @@
-variable "ami" {
+variable "ami_id" {
   description = "AMI identifier to be used"
   type        = string
   default     = "ami-04f167a56786e4b09"
@@ -31,8 +31,8 @@ variable "alb_name" {
 
 variable "alb_port_http" {
   description = "The HTTP Port on which the ALB url will be exposed"
-  type = number
-  default = 80
+  type        = number
+  default     = 80
 }
 
 variable "instance_security_group_name" {
