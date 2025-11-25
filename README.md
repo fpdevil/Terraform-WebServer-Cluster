@@ -3,6 +3,8 @@ A very simple `terraform` poc for creating `EC2` instances configured under an `
 
 The shell script `launch_httpd.sh` creates a `http` server for testing the whole setup through browser.
 
+This example can serve as a good starting point for a real world example of floating *Highly Available* infrstructure which can dynamically scale as per load and any other unforeseen conditions. The `ASG` can take care of handling additional tasks as well as load and launch a cluster of `EC2` instances dynamically and replacing failed instances.
+
 ```bash
 #  Terraform Initialize
 ## Initialize the local backend
@@ -23,7 +25,7 @@ terraform plan
 terraform apply -auto-approve
 ```
 
-# Creation
+# Infrastructure Creation
 
 ```bash
 $ terraform apply
@@ -77,13 +79,14 @@ launch_template_id = "lt-057286aad8ddbbfea"
 launch_template_latest_version = 1
 ```
 
-## Test
+## Testing
 Capture the `ALB` address from the output of `terraform` above and use that to test through browser or `curl`.
 ```bash
 $ curl http://terraform-poc-alb-1513312962.us-east-2.elb.amazonaws.com
 ```
 
-# Cleanup
+# Resource cleanup
+The infrastructure created can be deleted using the `terraform destroy` as demonstrated here.
 
 ```bash
 # Terraform Destroy
